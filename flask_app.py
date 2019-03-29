@@ -22,7 +22,7 @@ app = Flask(__name__)
 def load_drug(drug):
     
     sql_string = '''SELECT sum(quantity),period FROM "df" WHERE TRANBNFCODE = '''+drug+ ' group by period '
-    print(sql_string)
+    #print(sql_string)
     df = pd.read_sql(sql_string,engine)
     df['dt'] = pd.to_datetime(df.period, format = '%Y%m',errors = 'coerce')
     ds=df['dt']                  # Column for datestamp in Prophet model
@@ -36,8 +36,10 @@ def load_drug(drug):
 def prophetmodel(ts,forecast_period=12):
     # Train Test Split 
     train = ts[:-12]   # leave out last twelve points for testing 
+    #print(train)
     model = Prophet()
     model.fit(train)
+    #print('\n fit sucessful')
     future = model.make_future_dataframe(periods=forecast_period,freq='M') 
     forecast = model.predict(future)
     return(forecast)
@@ -54,9 +56,9 @@ def predict():
     try:
         drug = request.args.get('text')
         drug= "'"+drug+"'"
-        print(type(drug),engine)
+        #print(type(drug),engine)
         ts = load_drug(drug)
-        print('drug loaded')
+        #print('drug loaded')
         forecast = prophetmodel(ts)
         forecast = forecast.iloc[-1]
         demand = list(forecast)

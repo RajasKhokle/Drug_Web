@@ -11,6 +11,11 @@ from flask import jsonify
 import pandas as pd
 from sqlalchemy import create_engine
 from fbprophet import Prophet
+import os
+import warnings# Suppress warnings
+warnings.filterwarnings("ignore")
+import logging # Suppress Logs
+logging.getLogger().setLevel(logging.CRITICAL)
 
 #Create connection to the database
 engine = create_engine('postgres://postgres:DataAdmin@127.0.0.1:5432/Capstone')
@@ -32,12 +37,47 @@ def load_drug(drug):
     ts.reset_index(inplace =True,drop =True)
     return(ts)
     
+# Suppress the output from prophet from pystan
+class suppress_stdout_stderr(object):
+    '''
+    A context manager for doing a "deep suppression" of stdout and stderr in
+    Python, i.e. will suppress all print, even if the print originates in a
+    compiled C/Fortran sub-function.
+       This will not suppress raised exceptions, since exceptions are printed
+    to stderr just before a script exits, and after the context manager has
+    exited (at least, I think that is why it lets exceptions through).
+
+    '''
+    def __init__(self):
+        # Open a pair of null files
+        self.null_fds = [os.open(os.devnull, os.O_RDWR) for x in range(2)]
+        # Save the actual stdout (1) and stderr (2) file descriptors.
+        self.save_fds = (os.dup(1), os.dup(2))
+
+    def __enter__(self):
+        # Assign the null pointers to stdout and stderr.
+        os.dup2(self.null_fds[0], 1)
+        os.dup2(self.null_fds[1], 2)
+
+    def __exit__(self, *_):
+        # Re-assign the real stdout/stderr back to (1) and (2)
+        os.dup2(self.save_fds[0], 1)
+        os.dup2(self.save_fds[1], 2)
+        # Close the null files
+        os.close(self.null_fds[0])
+        os.close(self.null_fds[1])
+
+# used like
+# with suppress_stdout_stderr():
+#     p = Propet(*kwargs).fit(training_data)
+    
 # fbprophet forecasting function
 def prophetmodel(ts,forecast_period=12):
     # Train Test Split 
     train = ts[:-12]   # leave out last twelve points for testing 
-    model = Prophet()
-    model.fit(train)
+    with suppress_stdout_stderr():
+        model = Prophet()
+        model.fit(train)
     future = model.make_future_dataframe(periods=forecast_period,freq='M') 
     forecast = model.predict(future)
     return(forecast)
@@ -60,7 +100,6 @@ def predict():
         forecast = prophetmodel(ts)
         forecast = forecast.iloc[-1]
         demand = list(forecast)
-        
         return jsonify(demand)
     except:
         response = jsonify(drug)

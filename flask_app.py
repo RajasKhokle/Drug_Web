@@ -18,7 +18,7 @@ import logging # Suppress Logs
 logging.getLogger().setLevel(logging.CRITICAL)
 
 #Create connection to the database
-engine = create_engine('postgres://postgres:DataAdmin@127.0.0.1:5432/Capstone')
+engine = create_engine('postgres://postgres:raj_drug_2019@127.0.0.1:5432/diabetes')
 
 # Create App name
 app = Flask(__name__)
@@ -26,8 +26,8 @@ app = Flask(__name__)
 # Load the Drug
 def load_drug(drug):
     
-    sql_string = '''SELECT sum(quantity),period FROM "Casptone_Tableau" WHERE TRANBNFCODE = '''+drug+ ' group by period '
-    print(sql_string)
+    sql_string = '''SELECT sum(quantity),period FROM "df" WHERE TRANBNFCODE = '''+drug+ ' group by period '
+    #print(sql_string)
     df = pd.read_sql(sql_string,engine)
     df['dt'] = pd.to_datetime(df.period, format = '%Y%m',errors = 'coerce')
     ds=df['dt']                  # Column for datestamp in Prophet model
@@ -94,9 +94,9 @@ def predict():
     try:
         drug = request.args.get('text')
         drug= "'"+drug+"'"
-        print(type(drug),engine)
+        #print(type(drug),engine)
         ts = load_drug(drug)
-        print('drug loaded')
+        #print('drug loaded')
         forecast = prophetmodel(ts)
         forecast = forecast.iloc[-1]
         demand = list(forecast)
